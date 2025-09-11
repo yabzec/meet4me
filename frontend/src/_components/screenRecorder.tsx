@@ -1,10 +1,21 @@
-// /client/components/ScreenRecorder.tsx (o dove si trova il tuo componente)
 'use client'
+
+import { getFileName } from "@/app/actions/backend";
+import axios from "axios";
 import React, { useRef, useState } from 'react';
 
-const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8080';
+const BACKEND_HTTP_URL = process.env.NODE_ENV === 'production'
+    ? `https://${process.env.NEXT_PUBLIC_BACKEND_URL}`
+    : 'http://localhost:8080';
+const BACKEND_SOCKET_URL = process.env.NODE_ENV === 'production'
+    ? `wss://${process.env.NEXT_PUBLIC_BACKEND_URL}`
+    : 'ws://localhost:8080';
 
-const ScreenRecorder: React.FunctionComponent = () => {
+interface ScreenRecorderProps {
+    onStop: (fileName: string) => void;
+}
+
+const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop}) => {
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const webSocketRef = useRef<WebSocket | null>(null);
@@ -15,7 +26,9 @@ const ScreenRecorder: React.FunctionComponent = () => {
                 audio: true, video: { frameRate: 30 }
             });
 
-            webSocketRef.current = new WebSocket(WEBSOCKET_URL);
+            const fileName = await getFileName();
+            const params = `?fileName=${fileName}`;
+            webSocketRef.current = new WebSocket(`${BACKEND_SOCKET_URL}${params}`);
 
             webSocketRef.current.onopen = () => {
                 const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
@@ -32,6 +45,7 @@ const ScreenRecorder: React.FunctionComponent = () => {
                     stream.getTracks().forEach(track => track.stop());
                     webSocketRef.current?.close();
                     setIsRecording(false);
+                    onStop(fileName);
                 };
 
                 recorder.start(1000);

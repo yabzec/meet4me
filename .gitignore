@@ -19,6 +19,8 @@ out/
 
 # production
 build
+reserved.json
+recordings
 
 # misc
 .DS_Store

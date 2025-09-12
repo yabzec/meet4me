@@ -122,6 +122,12 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
+    if (!pendingFiles.hasOwnProperty(fileName)) {
+        ws.close(404);
+        ws.terminate();
+        return;
+    }
+
     const filePath = getFilePath(fileName);
     const fileStream = fs.createWriteStream(filePath);
 

@@ -1,6 +1,6 @@
 # Meet4Me
 
-Summarize screensharing videos.
+Summarize meeting videos recorded from sharing screen browser tab.
 
 ## Environment
 #### Frontend

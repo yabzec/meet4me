@@ -20,7 +20,7 @@ Summarize screensharing videos.
 Create `backend/geminiPrompt.txt` with your prompt, something like:
 ```txt
 # COMPLETE INSTRUCTIONS FOR THE ANALYSIS OF THE PROVIDED VIDEO
-You are a multimodal AI assistant expert in video content analysis. Your task is to process the video file provided to you and perform, in order, the following steps to generate a complete report in the Italian language.
+You are a multimodal AI assistant expert in video content analysis. Your task is to process the video file provided to you and perform, in order, the following steps to generate a complete report in the English language.
 **Step 1: Full Transcription**
 First, listen carefully to the entire audio of the video and transcribe everything that is said word for word.
 **Step 2: Speaker Identification (Diarization)**

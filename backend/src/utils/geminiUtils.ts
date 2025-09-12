@@ -1,18 +1,24 @@
 import { GoogleGenAI, File, createUserContent, createPartFromUri } from "@google/genai";
 import dotenv from 'dotenv'
 import { sleep } from "./timeUtils";
+import fs from "fs";
+import path from "path";
 
 dotenv.config();
 
 export async function summarize(file: File): Promise<string|undefined> {
     const ai = new GoogleGenAI({apiKey: process.env.GOOGLE_API_KEY});
+    const {geminiPrompt, geminiSystemInstructions} = getGeminiSetup();
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: createUserContent([
                 createPartFromUri(file.uri!, file.mimeType!),
-                "Riassumi il contenuto del video evidenziandone i punti chiave, trascrivi il parlato e infine fai un elenco puntato con tutti i punti salienti"
-            ])
+                geminiPrompt
+            ]),
+            config: {
+                systemInstruction: geminiSystemInstructions
+            }
         });
 
         return response.text;
@@ -50,4 +56,11 @@ export async function uploadToGemini(fileName: string): Promise<File|undefined> 
         console.error(reason);
 
     }
+}
+
+export function getGeminiSetup(): {geminiPrompt: string, geminiSystemInstructions: string} {
+    const processCwd = process.cwd();
+    const geminiPrompt = fs.readFileSync(path.join(processCwd, "geminiPrompt.txt"), "utf8");
+    const geminiSystemInstructions = fs.readFileSync(path.join(processCwd, "geminiSystemInstructions.txt"), "utf8");
+    return {geminiPrompt, geminiSystemInstructions};
 }

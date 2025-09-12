@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import {URL} from 'url';
 import {File as GFile} from "@google/genai";
-import {summarize, uploadToGemini} from "./utils/geminiUtils";
+import {getGeminiSetup, summarize, uploadToGemini} from "./utils/geminiUtils";
 import {deleteFile, getFilePath, recordingsDir } from "./utils/fileUtils";
 import cors from 'cors';
 import dotenv from 'dotenv';

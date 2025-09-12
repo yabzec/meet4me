@@ -3,6 +3,9 @@
 import ScreenRecorder from "../_components/screenRecorder";
 import axios from "axios";
 import { useState } from "react";
+import { remark } from "remark";
+import html from "remark-html";
+import './globals.css';
 
 
 const BACKEND_URL = process.env.NODE_ENV === 'production'
@@ -15,8 +18,10 @@ export default function Home() {
     async function getSummary(fileName: string): Promise<void> {
         try {
             const summary: string = (await axios.get(`${BACKEND_URL}/summarize/${fileName}`)).data;
-            console.log(summary);
-            setSummaries([...summaries, summary]);
+            const processedSummary = (await remark()
+                .use(html)
+                .process(summary)).toString();
+            setSummaries([...summaries, processedSummary]);
         } catch (e) {
             console.error(e);
         }
@@ -25,9 +30,7 @@ export default function Home() {
   return (
     <div>
         <ScreenRecorder onStop={getSummary} />
-        {summaries.map((summary: String, i: number) => <div key={`video_${i}`}>
-            {summary}
-        </div>)}
+        {summaries.map((summary: String, i: number) => <div key={`video_${i}`} dangerouslySetInnerHTML={{__html: summary}} />)}
     </div>
   );
 }

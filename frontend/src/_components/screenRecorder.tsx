@@ -1,8 +1,7 @@
 'use client'
 
-import { getFileName } from "@/app/actions/backend";
-import axios from "axios";
-import React, { useRef, useState } from 'react';
+import {getFileName} from "@/app/actions/backend";
+import React, {useRef, useState} from 'react';
 
 const BACKEND_HTTP_URL = process.env.NODE_ENV === 'production'
     ? `https://${process.env.NEXT_PUBLIC_BACKEND_URL}`
@@ -66,22 +65,16 @@ const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop}) 
         mediaRecorderRef.current?.stop();
     };
 
-    const ButtonStyle = {
-        backgroundColor: isRecording ? 'red' : 'green',
-        color: 'white',
-        fontSize: '2em',
-        padding: '10px 20px',
-        margin: '5px',
-        cursor: 'pointer'
-    };
-
     return (
         <div>
             <button
-                style={ButtonStyle}
+                className={`recordingButton ${isRecording ? 'stop' : 'start'}`}
                 onClick={isRecording ? stopScreenRecording : startScreenRecording}
             >
-                {isRecording ? 'Stop Recording' : 'Start Recording'}
+                <div className={`recordingIcon ${isRecording ? 'stop' : 'start'}`}><span/></div>
+                <span>
+                    {isRecording ? 'Stop Recording' : 'Start Recording'}
+                </span>
             </button>
         </div>
     );

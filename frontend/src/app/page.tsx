@@ -13,7 +13,7 @@ const BACKEND_URL = process.env.NODE_ENV === 'production'
     : 'http://localhost:8080';
 
 export default function Home() {
-    const [summaries, setSummaries] = useState<String[]>([]);
+    const [summaries, setSummaries] = useState<string[]>([]);
 
     async function getSummary(fileName: string): Promise<void> {
         try {
@@ -29,8 +29,9 @@ export default function Home() {
 
   return (
     <div>
+        <button onClick={() => getSummary('rec-1757684563240')}>Do it</button>
         <ScreenRecorder onStop={getSummary} />
-        {summaries.map((summary: String, i: number) => <div key={`video_${i}`} dangerouslySetInnerHTML={{__html: summary}} />)}
+        {summaries.map((summary: string, i: number) => <div key={`video_${i}`} dangerouslySetInnerHTML={{__html: summary}} />)}
     </div>
   );
 }

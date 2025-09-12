@@ -18,6 +18,7 @@ node_modules
 out/
 
 # production
+dist
 build
 reserved.json
 recordings

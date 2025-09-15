@@ -2,36 +2,38 @@ import express from 'express';
 import http from 'http';
 import {WebSocketServer} from 'ws';
 import fs from 'fs';
-import path from 'path';
 import {URL} from 'url';
-import {File as GFile} from "@google/genai";
-import {getGeminiSetup, summarize, uploadToGemini} from "./utils/geminiUtils";
-import {deleteFile, getFilePath, recordingsDir } from "./utils/fileUtils";
+import {summarize} from "./utils/geminiUtils";
+import {deleteFile, getFilePath, recordingsDir} from "./utils/fileUtils";
 import cors from 'cors';
+import {sleep} from "./utils/timeUtils";
 import dotenv from 'dotenv';
-import { sleep } from "./utils/timeUtils";
+import {Summary} from "./types/summary";
 
 dotenv.config();
+
+const {WEBSOCKET_API_KEY} = process.env;
+
 const app = express();
 app.use(cors());
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
-
-let pendingFiles: {[k: string]: boolean} = {};
-const pendingFilesJson = path.join(process.cwd(), 'reserved.json');
-
-if (!fs.existsSync(pendingFilesJson)) {
-    fs.writeFileSync(pendingFilesJson, JSON.stringify(pendingFiles), {encoding: 'utf8'});
-} else {
-    pendingFiles = JSON.parse(fs.readFileSync(pendingFilesJson, {encoding: 'utf8'}));
-}
+const pendingFiles = fs.readdirSync(recordingsDir)
+    .reduce<{ [k: string]: boolean }>((obj, fileName) => {
+    obj[fileName.split('.')[0]] = true;
+    return obj;
+}, {});
 
 function releseName(fileName: string): void {
     delete pendingFiles[fileName];
 }
 
 async function waitForPending(fileName: string): Promise<void> {
+    if (!pendingFiles.hasOwnProperty(fileName)) {
+        throw new Error('Pending file "' + fileName + '" not found');
+    }
+
     while (!pendingFiles[fileName]) {
         await sleep(100);
     }
@@ -44,7 +46,7 @@ if (!fs.existsSync(recordingsDir)) {
 app.get('/new-recording', (req, res) => {
     const clientApiKey = req.query.apiKey;
 
-    if (!clientApiKey || clientApiKey !== process.env.WEBSOCKET_API_KEY) {
+    if (!clientApiKey || clientApiKey !== WEBSOCKET_API_KEY) {
         res.sendStatus(401);
         return;
     }
@@ -62,7 +64,14 @@ app.get('/new-recording', (req, res) => {
     res.send(newRecordingTitle);
 });
 
-app.get('/delete/:fileName', (req, res) => {
+app.delete('/:fileName', (req, res) => {
+    const clientApiKey = req.query.apiKey;
+
+    if (!clientApiKey || clientApiKey !== WEBSOCKET_API_KEY) {
+        res.sendStatus(401);
+        return;
+    }
+
     const fileName = req.params.fileName;
     let filePath = getFilePath(fileName);
 
@@ -72,40 +81,42 @@ app.get('/delete/:fileName', (req, res) => {
 
     deleteFile(fileName);
     releseName(fileName);
+    res.send('OK');
 });
 
 app.get('/summarize/:fileName', (req, res) => {
     (new Promise<string>(async (resolve, reject) => {
         const fileName = req.params.fileName;
-        await waitForPending(fileName);
-        let filePath = getFilePath(fileName);
+        console.log(`Summarizing ${fileName}`);
+
+        try {
+            await waitForPending(fileName);
+        } catch (e) {
+            reject(e);
+            return
+        }
+
+        const filePath = getFilePath(fileName);
 
         if (!fs.existsSync(filePath)) {
             res.sendStatus(404);
         }
+
         try {
-            const gFile: GFile | undefined = await uploadToGemini(filePath);
-
-            if (!gFile) {
-                reject(new Error('Error uploading file to gemini'));
-                return;
-            }
-
-            const summary: string | undefined = await summarize(gFile!);
+            const summary: Summary = await summarize(fileName);
 
             if (!summary) {
                 reject(new Error('Error summarizing video'));
                 return;
             }
 
-            deleteFile(fileName);
-            releseName(fileName);
-            resolve(summary);
+            resolve(JSON.stringify(summary));
         } catch (err) {
             reject(err);
         }
     })).then(summary => {
         res.send(summary);
+        console.log(`\tEnd summarizing`)
     })
     .catch(err => {
         res.status(502).send('Error summarizing: ' + err);
@@ -117,7 +128,7 @@ wss.on('connection', (ws, req) => {
 
     const fileName = requestUrl.searchParams.get('fileName');
     if (!fileName) {
-        ws.close(400, "Missing fileName paramter");
+        ws.close(400, "Missing fileName parameter");
         ws.terminate();
         return;
     }
@@ -127,6 +138,8 @@ wss.on('connection', (ws, req) => {
         ws.terminate();
         return;
     }
+
+    fs.mkdirSync(fileName);
 
     const filePath = getFilePath(fileName);
     const fileStream = fs.createWriteStream(filePath);

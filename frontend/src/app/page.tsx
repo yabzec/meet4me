@@ -1,37 +1,45 @@
 'use client';
 
-import ScreenRecorder from "../_components/screenRecorder";
-import axios from "axios";
-import { useState } from "react";
-import { remark } from "remark";
-import html from "remark-html";
+import React, {useState} from "react";
 import './globals.css';
-
-
-const BACKEND_URL = process.env.NODE_ENV === 'production'
-    ? `https://${process.env.NEXT_PUBLIC_BACKEND_URL}`
-    : 'http://localhost:8080';
+import ScreenRecorder from "@/_components/screenRecorder";
+import {deleteRecording, getSummary} from "@/app/actions/backend";
+import SummaryType from "@/_types/summary";
+import Summary from "@/_components/summary";
 
 export default function Home() {
-    const [summaries, setSummaries] = useState<string[]>([]);
+    const [summary, setSummary] = useState<SummaryType>();
+    const [error, setError] = useState<string>();
+    const [fileName, setFileName] = useState<string>();
 
-    async function getSummary(fileName: string): Promise<void> {
-        try {
-            const summary: string = (await axios.get(`${BACKEND_URL}/summarize/${fileName}`)).data;
-            const processedSummary = (await remark()
-                .use(html)
-                .process(summary)).toString();
-            setSummaries([...summaries, processedSummary]);
-        } catch (e) {
-            console.error(e);
+    async function summarize(fileName: string): Promise<void> {
+        setFileName(fileName);
+        const summary = await getSummary(fileName);
+        if (summary) {
+            setSummary(summary);
+        } else {
+            setError("Problems during summary");
         }
     }
 
-  return (
-    <div>
-        <button onClick={() => getSummary('rec-1757684563240')}>Do it</button>
-        <ScreenRecorder onStop={getSummary} />
-        {summaries.map((summary: string, i: number) => <div key={`video_${i}`} dangerouslySetInnerHTML={{__html: summary}} />)}
-    </div>
-  );
+    async function deleteFile(): Promise<void> {
+        if (fileName && await deleteRecording(fileName!)) {
+            setFileName(undefined);
+        }
+    }
+
+    return (<>
+        <button onClick={() => summarize('rec-1757927134185')}>Do</button>
+        <ScreenRecorder onStop={summarize} />
+        {(fileName && !summary) && 'Loading...'}
+        {summary && <Summary data={summary} />}
+        {summary && <div>
+            <pre dangerouslySetInnerHTML={{__html: JSON.stringify(summary, null, "\n")}} />
+            {fileName && <div className="flex">
+                <button onClick={() => summarize(fileName)}>Retry</button>
+                <button onClick={deleteFile}>Accept</button>
+            </div>}
+        </div>}
+        {error && <h3>{error}</h3>}
+    </>);
 }

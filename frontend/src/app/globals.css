@@ -25,9 +25,8 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-.recordingButton {
+button {
     color: white;
-    fontSize: 2em;
     padding: 10px 20px;
     margin: 5px;
     cursor: pointer;
@@ -37,6 +36,11 @@ body {
     font-weight: 800;
     border-radius: 15px;
 }
+
+.recordingButton{
+    fontSize: 2em;
+}
+
 .recordingButton.stop {
     background-color: #dd2f2f;
 }

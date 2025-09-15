@@ -118,7 +118,7 @@ const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop}) 
     };
 
     return (
-        <div>
+        <>
             {error && <p style={{ color: 'red' }}>{error}</p>}
             <button
                 className={`recordingButton ${isRecording ? 'stop' : 'start'}`}
@@ -129,7 +129,7 @@ const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop}) 
                     {isRecording ? 'Stop Recording' : 'Start Recording'}
                 </span>
             </button>
-        </div>
+        </>
     );
 };
 

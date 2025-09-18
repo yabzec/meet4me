@@ -3,8 +3,8 @@ import http from 'http';
 import {WebSocketServer} from 'ws';
 import fs from 'fs';
 import {URL} from 'url';
-import {summarize} from "./utils/geminiUtils";
-import {deleteFile, getFilePath, recordingsDir} from "./utils/fileUtils";
+import {deleteFromGemini, summarize} from "./utils/geminiUtils";
+import {deleteFile, getFileFolder, getFilePath, getSummaryPath, recordingsDir} from "./utils/fileUtils";
 import cors from 'cors';
 import {sleep} from "./utils/timeUtils";
 import dotenv from 'dotenv';
@@ -37,6 +37,12 @@ async function waitForPending(fileName: string): Promise<void> {
     while (!pendingFiles[fileName]) {
         await sleep(100);
     }
+}
+
+async function deleteRecording(fileName: string): Promise<void> {
+    await deleteFromGemini(fileName);
+    deleteFile(fileName);
+    releseName(fileName);
 }
 
 if (!fs.existsSync(recordingsDir)) {
@@ -79,9 +85,15 @@ app.delete('/:fileName', (req, res) => {
         res.sendStatus(404);
     }
 
-    deleteFile(fileName);
-    releseName(fileName);
-    res.send('OK');
+    (new Promise<void>(async (resolve, reject) => {
+        try {
+            await deleteRecording(fileName);
+            resolve();
+        } catch (err) {
+            reject(err);
+        }
+    })).then(() => res.send('OK'))
+        .catch(() => res.sendStatus(502));
 });
 
 app.get('/summarize/:fileName', (req, res) => {
@@ -89,11 +101,16 @@ app.get('/summarize/:fileName', (req, res) => {
         const fileName = req.params.fileName;
         console.log(`Summarizing ${fileName}`);
 
+        if (fs.existsSync(getSummaryPath(fileName))) {
+            resolve(fs.readFileSync(getSummaryPath(fileName), { encoding: 'utf8' }));
+            return;
+        }
+
         try {
             await waitForPending(fileName);
         } catch (e) {
             reject(e);
-            return
+            return;
         }
 
         const filePath = getFilePath(fileName);
@@ -110,11 +127,16 @@ app.get('/summarize/:fileName', (req, res) => {
                 return;
             }
 
-            resolve(JSON.stringify(summary));
+            const response = JSON.stringify(summary);
+            fs.writeFileSync(getSummaryPath(fileName), response, { encoding: 'utf8' });
+
+            resolve(response);
         } catch (err) {
             reject(err);
         }
     })).then(summary => {
+        if (process.env.NODE_ENV !== 'production') {
+        }
         res.send(summary);
         console.log(`\tEnd summarizing`)
     })
@@ -139,7 +161,7 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    fs.mkdirSync(fileName);
+    fs.mkdirSync(getFileFolder(fileName));
 
     const filePath = getFilePath(fileName);
     const fileStream = fs.createWriteStream(filePath);

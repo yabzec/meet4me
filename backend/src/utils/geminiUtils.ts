@@ -1,10 +1,10 @@
-import {GoogleGenAI, File, createUserContent, createPartFromUri, Type, File as GFile} from "@google/genai";
+import {GoogleGenAI, File, createUserContent, createPartFromUri, Type, File as GFile, GenerateContentResponse} from "@google/genai";
 import dotenv from 'dotenv'
 import { sleep } from "./timeUtils";
 import fs from "fs";
 import path from "path";
 import {Summary, Transcription} from "../types/summary";
-import {getFilePath, getTranscriptionFilePath} from "./fileUtils";
+import {getFilePath, getGFilePath, getTranscriptionFilePath} from "./fileUtils";
 
 dotenv.config();
 
@@ -12,21 +12,26 @@ export async function summarize(fileName: string): Promise<Summary> {
     const ai = new GoogleGenAI({apiKey: process.env.GOOGLE_API_KEY});
     const {geminiPromptTranscription, geminiPromptSummary, geminiSystemInstructions} = getGeminiSetup();
     const filePath = getFilePath(fileName);
-    const transcriptionFile = getTranscriptionFilePath(fileName);
+    const transcriptionFilePath
+        = getTranscriptionFilePath(fileName);
+    const gFilePath = getGFilePath(fileName);
 
     let transcriptionString: string;
-    if (fs.existsSync(transcriptionFile)) {
+    let gFile: GFile;
+    if (fs.existsSync(transcriptionFilePath) && fs.existsSync(gFilePath)) {
         console.log("\tFound transcription");
-        transcriptionString = fs.readFileSync(transcriptionFile, { encoding: "utf8" });
+        transcriptionString = fs.readFileSync(transcriptionFilePath, { encoding: "utf8" });
+        gFile = JSON.parse(fs.readFileSync(gFilePath, { encoding: "utf8" }));
     } else {
-        const gFile: GFile = await uploadToGemini(filePath);
+        gFile = await uploadToGemini(filePath);
         transcriptionString = await transcribe(ai, gFile, geminiPromptTranscription, geminiSystemInstructions);
-        fs.writeFileSync(transcriptionFile, transcriptionString, { encoding: "utf8" });
+        fs.writeFileSync(transcriptionFilePath, transcriptionString, { encoding: "utf8" });
+        fs.writeFileSync(gFilePath, JSON.stringify(gFile), { encoding: "utf8" });
     }
 
     const transcription: Transcription = JSON.parse(transcriptionString);
 
-    return getSummary(ai, transcription, geminiPromptSummary, geminiSystemInstructions);
+    return getSummary(ai, transcription, gFile, geminiPromptSummary, geminiSystemInstructions);
 }
 
 async function transcribe(ai: GoogleGenAI, file: File, geminiPromptTranscription: string, geminiSystemInstructions: string): Promise<string> {
@@ -71,39 +76,49 @@ async function transcribe(ai: GoogleGenAI, file: File, geminiPromptTranscription
     return data;
 }
 
-async function getSummary(ai: GoogleGenAI, transcription: Transcription, geminiPromptSummary: string, geminiSystemInstructions: string): Promise<Summary> {
+async function getSummary(ai: GoogleGenAI, transcription: Transcription, gFile: GFile, geminiPromptSummary: string, geminiSystemInstructions: string): Promise<Summary> {
     const transcriptionText = transcription.transcription.map(t => `${t.speaker}: ${t.text}`).join('\n');
     console.log("\tBegin summary");
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: geminiPromptSummary.replace("%TRANSCRIPTION%", transcriptionText),
-        config: {
-            systemInstruction: geminiSystemInstructions,
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING },
-                    summary: { type: Type.STRING },
-                    keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    actions: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                dueDate: { type: Type.NUMBER },
-                                assign: { type: Type.STRING },
-                                description: { type: Type.STRING }
+    let response: GenerateContentResponse;
+    try {
+        response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: createUserContent([
+                createPartFromUri(gFile.uri!, gFile.mimeType!),
+                geminiPromptSummary.replace("%TRANSCRIPTION%", transcriptionText)
+            ]),
+            config: {
+                systemInstruction: geminiSystemInstructions,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        title: { type: Type.STRING },
+                        summary: { type: Type.STRING },
+                        keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        actions: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    dueDate: { type: Type.NUMBER },
+                                    assign: { type: Type.STRING },
+                                    description: { type: Type.STRING }
+                                }
                             }
                         }
                     }
                 }
-            }
-        },
-    });
+            },
+        });
+    } catch (e) {
+        console.error(e);
+        throw new Error(`Gemini transcription: ${(e as Error).message}`);
+    }
+
     console.log("\tSummary complete");
 
-    const data = response.text;
+    const data = response!.text;
     if (!data) {
         throw new Error("Gemini transcription: No data")
     }
@@ -141,7 +156,14 @@ async function uploadToGemini(fileName: string): Promise<File> {
     return currentFile;
 }
 
-export function getGeminiSetup(): {geminiPromptTranscription: string, geminiPromptSummary: string, geminiSystemInstructions: string} {
+export async function deleteFromGemini(fileName: string): Promise<void> {
+    const ai = new GoogleGenAI({apiKey: process.env.GOOGLE_API_KEY});
+    const gFilePath = getGFilePath(fileName);
+    const gFile: GFile = JSON.parse(fs.readFileSync(gFilePath, { encoding: "utf8" }));
+    await ai.files.delete({name: gFile.name!});
+}
+
+function getGeminiSetup(): {geminiPromptTranscription: string, geminiPromptSummary: string, geminiSystemInstructions: string} {
     const processCwd = process.cwd();
     const geminiPromptTranscription = fs.readFileSync(path.join(processCwd, "geminiPromptTranscription.txt"), "utf8");
     const geminiPromptSummary = fs.readFileSync(path.join(processCwd, "geminiPromptSummary.txt"), "utf8");

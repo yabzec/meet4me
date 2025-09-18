@@ -1,7 +1,5 @@
 'use server'
-import axios from "axios";
-import {remark} from "remark";
-import html from "remark-html";
+import axios, {AxiosError} from "axios";
 import Summary from "@/_types/summary";
 
 const BACKEND_HTTP_URL = process.env.NODE_ENV === 'production'
@@ -17,7 +15,7 @@ export async function getSummary(fileName: string): Promise<Summary | undefined>
         return (await axios.get(`${BACKEND_HTTP_URL}/summarize/${fileName}`)).data;
     } catch (e) {
         // TODO
-        console.error(e);
+        console.error((e as AxiosError).message);
     }
 }
 
@@ -27,7 +25,7 @@ export async function deleteRecording(fileName: string): Promise<boolean> {
         return true;
     } catch (e) {
         // TODO
-        console.error(e);
+        console.error((e as AxiosError).message);
     }
 
     return false;

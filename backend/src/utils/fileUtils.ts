@@ -17,7 +17,7 @@ export function getFilePath(fileName: string): string {
 }
 
 export function getTranscriptionFilePath(fileName: string): string {
-    return path.join(getFileFolder(fileName), `${fileName}.txt`);
+    return path.join(getFileFolder(fileName), `${fileName}.json`);
 }
 
 

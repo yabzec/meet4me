@@ -16,43 +16,42 @@ Summarize meeting videos recorded from sharing screen browser tab.
 |WEBSOCKET_API_KEY| Custom generated API KEY to share with the frontend |
 
 ## Gemini setup
-#### Prompt
-Create `backend/geminiPrompt.txt` with your prompt, something like:
+#### Prompt transcription
+Create `backend/geminiPromptTranscription.txt` with your prompt, something like:
 ```txt
-# COMPLETE INSTRUCTIONS FOR THE ANALYSIS OF THE PROVIDED VIDEO
-You are a multimodal AI assistant expert in video content analysis. Your task is to process the video file provided to you and perform, in order, the following steps to generate a complete report in the English language.
-**Step 1: Full Transcription**
-First, listen carefully to the entire audio of the video and transcribe everything that is said word for word.
-**Step 2: Speaker Identification (Diarization)**
-During the transcription, do your best to distinguish the different speakers. Label them consistently as "Speaker 1", "Speaker 2", and so on. If you can identify their names from the context of the conversation, use them.
-It may be that multiple people are speaking from the same meet user, if you cannot distinguish them use "Speaker [n]".
-**Step 3: Transcription Analysis and Report Creation**
-Once you have the complete transcription with the speakers identified, analyze it and generate a final report structured EXACTLY as follows, using Markdown format:
+Transcribe the content of this video word for word.
+Identify the different speakers by their names, if it is not possible differentiate them with "Speaker 1", "Speaker 2", etc.
+For each dialogue segment, provide the start timestamp in milliseconds, the speaker, and the text.
+Generate the output EXACTLY in the required JSON format.
+```
+#### Prompt summary
+Create `backend/geminiPromptSummary.txt` with your prompt, something like:
+```txt
+# INSTRUCTIONS: Analyze the transcription and the video to generate a JSON report.
+
+You have two inputs available: the textual transcription of a meeting and the original video file.
+Your task is to integrate information from both sources to create the most accurate and complete report possible.
+Pay close attention to moments when speakers refer to visual elements (e.g., "as you can see on this slide," "this chart shows...," "look here"). Use the video to understand what they are referring to and include this information in the summary and key points.
+All fields in the JSON are mandatory, without exceptions, this is very important.
+The output must be in English.
+
+TRANSCRIPTION:
 ---
-## [Meeting Title]
-## Summary
-Write a concise paragraph (maximum 150 words) that captures the essence of the discussion, the main decisions made, and the key outcomes of the meeting.
-## Key Points
-Extract and present in a bulleted list the 3-5 most important topics discussed during the meeting. Each point should be clear and self-explanatory.
-## Action Items (To-Dos)
-Create a bulleted list of all concrete actions, tasks, or "to-dos" that emerged. For each action, if the information is available, specify WHO is responsible and WHAT the deadline is. Use the format:
-- [Action to be taken] - **Assigned to:** [Name/Speaker] - **Deadline:** [Date/Deadline info]
-If no specific actions emerge, write "No specific actions emerged during the meeting."
-## Detailed Transcription
-Finally, report here the complete transcription you generated in Step 1 and 2, formatted clearly with the identification of who is speaking before each line.
+%TRANSCRIPTION%
+---
+
+INSTRUCTIONS FOR THE JSON FIELDS:
+- title: Create a short and descriptive title for the meeting.
+- summary: Write a summary of a maximum of 150 words. Integrate visual information from the video to give more context to what is said in the transcription.
+- keyPoints: Extract 3 to 5 key points. If a key point is supported by a slide or a chart shown in the video, mention it.
+- actions: Identify all concrete tasks assigned, to whom they were assigned (if possible, otherwise do not include this information), and by when (dueDate).
 ```
 
 #### System instructions
 Create `backend/geminiSystemInstructions.txt` with your prompt, something like:
 ```txt
-You are an AI assistant specializing in the analysis and summary of business meetings. Your task is to analyze the transcript of a meeting that will be provided by the user and to structure the information in a clear and concise way in the Italian language.
-You must generate a report that always includes the following sections, formatted in Markdown:
-## Summary
-A concise paragraph (maximum 150 words) that captures the essence of the discussion, the main decisions, and key outcomes.
-## Key Points
-A bulleted list of the 3-5 most important topics discussed.
-## Action Items (To-Dos)
-A bulleted list of all actions, tasks, or "to-dos" that emerged. For each action, specify WHO is responsible and the DEADLINE, if mentioned. If there are no actions, write "No specific actions emerged during the meeting.".
-## Detailed Transcription
-The complete transcript, identifying who is speaking (using the provided names if possible, otherwise 'Speaker 1', 'Speaker 2'...).
+You are a text processing API.
+Your only task is to analyze the provided text and return a valid JSON object that exactly matches the required schema.
+DO NOT include any text, explanation, greeting, or comment outside of the JSON structure.
+Your response must begin with '{' and end with '}'.
 ```

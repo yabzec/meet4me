@@ -10,6 +10,10 @@ export async function getFileName(): Promise<string> {
     return (await axios.get(`${BACKEND_HTTP_URL}/new-recording?apiKey=${process.env.WEBSOCKET_API_KEY}`)).data
 }
 
+export async function getAvailableFiles(): Promise<string[]> {
+    return (await axios.get(`${BACKEND_HTTP_URL}/list?apiKey=${process.env.WEBSOCKET_API_KEY}`)).data;
+}
+
 export async function getSummary(fileName: string): Promise<Summary | undefined> {
     try {
         return (await axios.get(`${BACKEND_HTTP_URL}/summarize/${fileName}`)).data;

@@ -9,15 +9,16 @@ const BACKEND_SOCKET_URL = process.env.NODE_ENV === 'production'
 
 interface ScreenRecorderProps {
     onStop: (fileName: string) => void;
+    onError: (error: string) => void;
+    onFileName: (fileName: string) => void;
 }
 
-const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop}) => {
+const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop, onError, onFileName}) => {
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const webSocketRef = useRef<WebSocket | null>(null);
     const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedMicDevice, setSelectedMicDevice] = useState<string>('');
-    const [error, setError] = useState<string | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
 
     useEffect(() => {
@@ -32,25 +33,23 @@ const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop}) 
                 }
             } catch (err) {
                 console.error("Errore nel caricare i dispositivi audio:", err);
-                setError("Non è stato possibile accedere ai dispositivi audio. Controlla i permessi del browser.");
+                onError("Non è stato possibile accedere ai dispositivi audio. Controlla i permessi del browser.");
             }
         };
         getDevices();
     }, []);
 
     const startScreenRecording = async () => {
-        setError(null);
-
         try {
             if (micDevices.length === 0) {
-                setError("Nessun microfono trovato per la registrazione combinata.");
+                onError("Nessun microfono trovato per la registrazione combinata.");
                 return;
             }
 
             const screenStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: { frameRate: 30 }});
             if (screenStream.getAudioTracks().length === 0) {
                 screenStream.getVideoTracks().forEach(track => track.stop());
-                setError("Audio di sistema non catturato. Assicurati di spuntare la casella 'Condividi audio'.");
+                onError("Audio di sistema non catturato. Assicurati di spuntare la casella 'Condividi audio'.");
                 return;
             }
 
@@ -77,6 +76,7 @@ const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop}) 
             };
 
             const fileName = await getFileName();
+            onFileName(fileName);
             const params = `?fileName=${fileName}`;
             webSocketRef.current = new WebSocket(`${BACKEND_SOCKET_URL}${params}`);
 
@@ -119,9 +119,8 @@ const ScreenRecorder: React.FunctionComponent<ScreenRecorderProps> = ({onStop}) 
 
     return (
         <>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
             <button
-                className={`recordingButton ${isRecording ? 'stop' : 'start'}`}
+                className={`button-primary button-lg recordingButton ${isRecording ? 'stop glow-red' : 'start'}`}
                 onClick={isRecording ? stopScreenRecording : startScreenRecording}
             >
                 <div className={`recordingIcon ${isRecording ? 'stop' : 'start'}`}><span/></div>

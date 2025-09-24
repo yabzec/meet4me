@@ -16,12 +16,13 @@ const {WEBSOCKET_API_KEY} = process.env;
 
 const app = express();
 app.use(cors());
+app.use('/recording', express.static(recordingsDir))
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 const pendingFiles = fs.readdirSync(recordingsDir)
     .reduce<{ [k: string]: boolean }>((obj, fileName) => {
-    obj[fileName.split('.')[0]] = true;
+    obj[fileName] = true;
     return obj;
 }, {});
 
@@ -70,6 +71,17 @@ app.get('/new-recording', (req, res) => {
     res.send(newRecordingTitle);
 });
 
+app.get('/list', (req, res) => {
+    const clientApiKey = req.query.apiKey;
+
+    if (!clientApiKey || clientApiKey !== WEBSOCKET_API_KEY) {
+        res.sendStatus(401);
+        return;
+    }
+
+    res.send(JSON.stringify(Object.keys(pendingFiles)));
+});
+
 app.delete('/:fileName', (req, res) => {
     const clientApiKey = req.query.apiKey;
 
@@ -101,7 +113,8 @@ app.get('/summarize/:fileName', (req, res) => {
         const fileName = req.params.fileName;
         console.log(`Summarizing ${fileName}`);
 
-        if (fs.existsSync(getSummaryPath(fileName))) {
+        if (process.env.NODE_ENV !== 'production' && fs.existsSync(getSummaryPath(fileName))) {
+            console.log('In dev, found summary in file system')
             resolve(fs.readFileSync(getSummaryPath(fileName), { encoding: 'utf8' }));
             return;
         }

@@ -35,24 +35,88 @@ h3 {
     margin-top: 1rem;
 }
 
-button {
-    color: white;
-    padding: 10px 20px;
-    margin: 5px;
-    cursor: pointer;
-    background-color: #232323;
+.timeline {
+    position: relative;
+}
+
+.timeline::before {
+    content: "";
+    position: absolute;
+    top: 2rem;
+    left: 3.5rem;
+    height: calc(100% - 4rem);
+    width: 1px;
+    border-left: 4px dotted var(--foreground);
+}
+
+.timeline .transcription {
+    position: relative;
+}
+
+.timeline .transcription > span:last-of-type {
+    position: absolute;
     display: flex;
     align-items: center;
+    top: 50%;
+    transform: translateY(-50%);
+    left: -5.25rem;
+    padding: .5rem;
+    background: var(--background);
+    color: white;
+    cursor: pointer;
+    background-color: #232323;
     font-weight: 800;
-    border-radius: 15px;
+    border-radius: 10px;
+}
+
+button, a {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    color: white;
+    text-decoration: none;
+}
+
+.button-primary {
+    background-color: #232323;
+}
+
+.button-success {
+    background-color: #1d9e55;
+}
+
+.button-warning {
+    background-color: #9e621d;
+}
+
+.button-error {
+    background-color: #9e1d1d;
+}
+
+.button-xs {
+    font-weight: 400;
+    padding: 1px 4px;
+    border-radius: 5px;
+}
+
+.button-lg {
+    font-weight: 800;
+    padding: 10px 20px;
+    margin: 5px;
+    border-radius: 10px;
 }
 
 .recordingButton{
     fontSize: 2em;
 }
 
+.recordingButton.stop.glow-red {
+    color: white !important;
+    animation: glow-red 1.5s ease-in-out infinite alternate;
+}
+
 .recordingButton.stop {
-    background-color: #dd2f2f;
+    background-color: #aa0f22;
 }
 
 .recordingIcon {
@@ -63,11 +127,11 @@ button {
     outline: 2px solid;
     margin-right: 20px;
 }
+
 .recordingIcon.start {
     color: #dd2f2f;
 }
-.recordingIcon span {
-}
+
 .recordingIcon.start span {
     position: absolute;
     height: 25px;
@@ -79,7 +143,6 @@ button {
     background-color: #dd2f2f;
     animation: radius .3s ease-in-out;
 }
-
 
 @keyframes radius {
     0% {
@@ -93,9 +156,11 @@ button {
         border-radius: 50%;
     }
 }
+
 .recordingIcon.stop {
     color: white;
 }
+
 .recordingIcon.stop span {
     position: absolute;
     height: 20px;
@@ -106,4 +171,23 @@ button {
     transform: translate(-50%, -50%);
     background-color: white;
     animation: radius .3s ease-in-out reverse;
+}
+
+.glow-red {
+    animation: glow-red 1.5s ease-in-out infinite alternate;
+}
+
+.icon.glow-red {
+    background-color: transparent !important;
+}
+
+@keyframes glow-red {
+    from {
+        background-color: #aa0f22;
+        color: #aa0f22;
+    }
+    to {
+        background-color: #dd2f2f;
+        color: #dd2f2f;
+    }
 }

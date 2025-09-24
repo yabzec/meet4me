@@ -1,66 +1,46 @@
 'use client';
 
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import './globals.css';
-import ScreenRecorder from "@/_components/screenRecorder";
-import {getSummary} from "@/app/actions/backend";
-import SummaryType from "@/_types/summary";
-import Summary from "@/_components/summary";
-import TurndownService from "turndown";
+import ScreenRecorder from "@/app/_components/screenRecorder";
+import { useRouter } from 'next/navigation'
+import {getAvailableFiles} from "@/app/actions/backend";
+import Recording from "@/app/_components/recording";
 
 export default function Home() {
-    const [summary, setSummary] = useState<SummaryType>();
-    const [error, setError] = useState<string>();
-    const [fileName, setFileName] = useState<string>();
+    const router = useRouter();
+    const [current, setCurrent] = useState<string>();
+    const [files, setFiles] = useState<string[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
-    async function summarize(fileName: string): Promise<void> {
-        setFileName(fileName);
-        const summary = await getSummary(fileName);
-        if (summary) {
-            console.log(summary);
-            setSummary(summary);
-        } else {
-            setError("Problems during summary");
-        }
-    }
+    useEffect(() => {
+        getAvailableFiles()
+            .then(setFiles)
+            .catch(e => {
+                console.error(e);
+                setError("There was an error loading files");
+            });
+    }, [])
 
-    async function deleteFile(): Promise<void> {
-        // if (fileName && await deleteRecording(fileName!)) {
-            setFileName(undefined);
-        // }
-
-    }
-
-    function getDocx() {
-        console.log("Todo");
-    }
-
-    async function getMarkdown() {
-        const turndownService: TurndownService = new TurndownService();
-        const summaryNode = document.getElementById('summary');
-        if (!summaryNode) {
-            // TODO
-            console.error("No summary");
-        }
-        const markdown = turndownService.turndown(summaryNode!);
-        await navigator.clipboard.writeText(markdown);
+    function sortFiles(a: string, b: string): number{
+        const timestampA = Number(a.split('-')[1]);
+        const timestampB = Number(b.split('-')[1]);
+        return timestampB - timestampA;
     }
 
     return (<>
-        <button onClick={() => summarize('rec-1758180638753')}>Do</button>
-        <ScreenRecorder onStop={summarize}/>
-        {(fileName && !summary) && 'Loading...'}
-        {summary && <div>
-            <Summary data={summary} id="summary" />
-            {fileName && <div className="flex">
-                <button onClick={() => summarize(fileName)}>Retry</button>
-                <button onClick={deleteFile}>Accept</button>
-            </div>}
-            {!fileName && <div className="flex">
-                <button onClick={getDocx}>Download document</button>
-                <button onClick={getMarkdown}>Copy markdown</button>
-            </div>}
-        </div>}
-        {error && <h3>{error}</h3>}
+        <div className="mt-10">
+            <ScreenRecorder onStop={(fileName: string) => {router.push(`/${fileName}`)}} onError={setError} onFileName={setCurrent}/>
+        </div>
+        {error && <h3 className="mt-10">{error}</h3>}
+        <div className="w-full mt-10">
+            <h1>Recordings</h1>
+            <ul className="w-full mt-10 flex flex-col align-start justify-start gap-4">
+                {current && <li><Recording fileName={current} isRecording={true} /></li>}
+                {files.sort(sortFiles).map((file, i) => (
+                    <li key={`${file}_${i}`}><Recording fileName={file} /></li>
+                ))}
+            </ul>
+        </div>
     </>);
 }

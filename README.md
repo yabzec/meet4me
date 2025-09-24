@@ -55,3 +55,7 @@ Your only task is to analyze the provided text and return a valid JSON object th
 DO NOT include any text, explanation, greeting, or comment outside of the JSON structure.
 Your response must begin with '{' and end with '}'.
 ```
+
+## Dev
+#### Icons
+Icon list can be found [here](https://phosphoricons.com/).
